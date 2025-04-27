@@ -1,6 +1,13 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import mammoth from 'mammoth';
+import * as pdfjsLib from 'pdfjs-dist';
+
+// Set worker path for PDF.js
+if (typeof window !== 'undefined') {
+  pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+}
 
 interface PlagiarismDetectionFormProps {
   text: string;
@@ -23,21 +30,82 @@ const PlagiarismDetectionForm: React.FC<PlagiarismDetectionFormProps> = ({
 }) => {
   const [wordCount, setWordCount] = useState(0);
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
   
   useEffect(() => {
     const words = text.trim() ? text.trim().split(/\s+/) : [];
     setWordCount(words.length);
     
-    // Clear validation error when text changes
     if (validationError) {
       setValidationError(null);
     }
   }, [text, validationError]);
+
+  const extractTextFromPDF = async (file: File): Promise<string> => {
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      let fullText = '';
+      
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const textContent = await page.getTextContent();
+        const pageText = textContent.items
+          .map((item: any) => item.str)
+          .join(' ');
+        fullText += pageText + '\n';
+      }
+      
+      return fullText.trim();
+    } catch (error) {
+      console.error('Error extracting text from PDF:', error);
+      throw new Error('Failed to extract text from PDF');
+    }
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsProcessing(true);
+    setSelectedFile(file);
+    setValidationError(null);
+
+    try {
+      let extractedText = '';
+
+      if (file.type === 'application/pdf') {
+        extractedText = await extractTextFromPDF(file);
+      } else if (
+        file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || 
+        file.type === 'application/msword'
+      ) {
+        const arrayBuffer = await file.arrayBuffer();
+        const result = await mammoth.extractRawText({ arrayBuffer });
+        extractedText = result.value;
+      } else {
+        throw new Error('Please upload a PDF or Word document (.pdf, .doc, or .docx)');
+      }
+
+      if (extractedText && extractedText.trim()) {
+        setText(extractedText.trim());
+        setValidationError(null);
+      } else {
+        throw new Error('Could not extract text from the document. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error processing document:', error);
+      setValidationError(error instanceof Error ? error.message : 'Error processing the document. Please try again.');
+      setSelectedFile(null);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
   
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Validate before submitting
     if (!text.trim()) {
       setValidationError('Please enter some text to analyze.');
       return;
@@ -48,7 +116,6 @@ const PlagiarismDetectionForm: React.FC<PlagiarismDetectionFormProps> = ({
       return;
     }
     
-    // If validation passes, call the parent's onSubmit
     onSubmit(e);
   };
   
@@ -62,7 +129,6 @@ The development of responsible AI requires collaboration among technologists, po
     setText(sampleText);
   };
 
-  // Text length check
   const textTooShort = wordCount < 10;
   const textIdealLength = wordCount >= 50 && wordCount <= 1000;
   
@@ -89,7 +155,7 @@ The development of responsible AI requires collaboration among technologists, po
       <div>
         <div className="flex justify-between items-center mb-2">
           <label htmlFor="content" className="block text-sm font-medium text-gray-700">
-            Paste your text below
+            Paste your text below or upload a document
           </label>
           <button
             type="button"
@@ -99,6 +165,29 @@ The development of responsible AI requires collaboration among technologists, po
             Use sample text
           </button>
         </div>
+
+        <div className="mb-4">
+          <input
+            type="file"
+            id="file-upload"
+            accept=".doc,.docx,.pdf"
+            onChange={handleFileChange}
+            className="block w-full text-sm text-gray-500
+              file:mr-4 file:py-2 file:px-4
+              file:rounded-md file:border-0
+              file:text-sm file:font-semibold
+              file:bg-blue-50 file:text-blue-700
+              hover:file:bg-blue-100"
+            disabled={isLoading || isProcessing}
+          />
+          {selectedFile && (
+            <p className="mt-2 text-sm text-gray-600">
+              Selected file: {selectedFile.name}
+              {isProcessing && ' (Processing...)'}
+            </p>
+          )}
+        </div>
+
         <textarea
           id="content"
           name="content"
@@ -107,54 +196,32 @@ The development of responsible AI requires collaboration among technologists, po
           placeholder="Enter text to check for plagiarism..."
           value={text}
           onChange={(e) => setText(e.target.value)}
-          disabled={isLoading}
+          disabled={isLoading || isProcessing}
         />
         {(error || validationError) && (
           <p className="mt-2 text-sm text-red-600">{error || validationError}</p>
         )}
-        <div className="mt-2 text-xs text-gray-500 flex justify-between items-center">
-          <div className={`${textTooShort && text.trim() ? 'text-amber-600 font-medium' : ''}`}>
-            {wordCount} words {textTooShort && text.trim() ? '(minimum 10 words required)' : ''}
-          </div>
-          <div className={textIdealLength ? 'text-green-600' : 'text-gray-500'}>
-            {textIdealLength ? '✓ Ideal length for analysis' : 'For best results, use 50-1000 words'}
-          </div>
+        <div className="mt-2 flex justify-between items-center">
+          <p className="text-sm text-gray-500">
+            Word count: {wordCount}
+            {textTooShort && (
+              <span className="text-red-500 ml-2">
+                (Minimum 10 words required)
+              </span>
+            )}
+          </p>
+          <button
+            type="submit"
+            disabled={isLoading || isProcessing || textTooShort}
+            className={`px-4 py-2 rounded-md text-sm font-medium ${
+              isLoading || isProcessing || textTooShort
+                ? 'bg-gray-300 cursor-not-allowed'
+                : 'bg-blue-600 hover:bg-blue-700 text-white'
+            }`}
+          >
+            {isLoading ? 'Analyzing...' : 'Analyze Text'}
+          </button>
         </div>
-        
-        <div className="mt-4 bg-blue-50 rounded-md p-3 text-sm text-blue-800 flex">
-          <svg className="h-5 w-5 text-blue-600 mr-2 flex-shrink-0" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-          </svg>
-          <div>
-            <p className="font-medium">For best results:</p>
-            <ul className="list-disc pl-5 mt-1 space-y-1">
-              <li>Use complete paragraphs rather than fragments</li>
-              <li>Include at least 50 words for higher accuracy</li>
-              <li>Text in any language is accepted</li>
-              <li>Adding a title may improve detection results</li>
-            </ul>
-          </div>
-        </div>
-      </div>
-      
-      <div className="flex justify-center">
-        <button
-          type="submit"
-          disabled={isLoading || !text.trim() || textTooShort}
-          className={`px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-gradient-to-r from-blue-600 to-violet-600 hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${
-            isLoading || !text.trim() || textTooShort ? 'opacity-50 cursor-not-allowed' : ''
-          }`}
-        >
-          {isLoading ? (
-            <div className="flex items-center">
-              <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-              Checking Plagiarism...
-            </div>
-          ) : 'Check for Plagiarism'}
-        </button>
       </div>
     </form>
   );

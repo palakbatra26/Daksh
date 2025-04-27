@@ -18,54 +18,53 @@ export default function AIDetection() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Reset states
+    setError(null);
+    setResults(null);
+    
+    // Validate input
     if (!text.trim()) {
       setError('Please enter some text to analyze.');
       return;
     }
 
-    // Check if text is too short
-    if (text.trim().split(/\s+/).length < 10) {
+    const words = text.trim().split(/\s+/);
+    if (words.length < 10) {
       setError('Please enter at least 10 words for accurate analysis.');
       return;
     }
 
+    // Start loading
     setIsLoading(true);
-    setError(null);
-    setResults(null);
     
     try {
-      // Use mock data if the user has opted for demo mode or if the API was previously unavailable
+      console.log('Starting AI detection analysis...');
       const data = await detectAIContent(text, useDemo || apiUnavailable);
       
-      // Verify the data structure before using it
       if (!data || !data.winstonai) {
         throw new Error('Invalid response format from the AI detection service.');
       }
       
       setResults(data);
+      setError(null);
     } catch (err: unknown) {
       console.error('AI Detection Error:', err);
       
       const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
       
-      // Check for API credit exhaustion
-      if (errorMessage && (
-          errorMessage.includes('API credits exhausted') || 
-          errorMessage.includes('No more credits')
-      )) {
+      if (errorMessage.includes('API credits exhausted') || errorMessage.includes('No more credits')) {
         setApiUnavailable(true);
-        setError(
-          'The API is currently unavailable due to usage limits. Would you like to try the demo mode instead?'
-        );
-      } 
-      // Provide more user-friendly error messages for other errors
-      else if (errorMessage && errorMessage.includes('length')) {
+        setError('The API is currently unavailable due to usage limits. Would you like to try the demo mode instead?');
+      } else if (errorMessage.includes('length')) {
         setError('The text is too long. Please reduce the length and try again.');
-      } else if (errorMessage && errorMessage.includes('rate limit')) {
+      } else if (errorMessage.includes('rate limit')) {
         setError('Too many requests. Please try again in a few minutes.');
       } else {
         setError(errorMessage || 'An error occurred while analyzing the text. Please try again later.');
       }
+      
+      // Clear results if there's an error
+      setResults(null);
     } finally {
       setIsLoading(false);
     }

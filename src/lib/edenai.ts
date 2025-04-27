@@ -65,28 +65,53 @@ export const getMockAIDetectionData = (text: string): AIDetectionResponse => {
 
 // Mock data for plagiarism detection
 export const getMockPlagiarismData = (text: string): PlagiarismResponse => {
-  // Split text into sentences or paragraphs for mock segments
   const segments = text.split(/(?<=\.|\?|\!)\s+/).filter(segment => segment.trim().length > 0);
-  
-  // If no segments were found, use the full text as one segment
   const processedSegments = segments.length > 0 ? segments : [text || "Sample text for plagiarism detection"];
   
   const mockItems: PlagiarismItem[] = [];
-
-  // Generate mock items from segments
   const numItems = Math.min(processedSegments.length, Math.max(3, Math.floor(Math.random() * 3) + 3));
+  
+  // Array of realistic academic and content websites with sample content
+  const realisticSources = [
+    {
+      url: 'https://scholar.google.com/scholar?q=artificial+intelligence+ethics',
+      content: 'The ethical implications of artificial intelligence have become increasingly important as AI systems become more sophisticated and integrated into society.',
+      score: 0.85
+    },
+    {
+      url: 'https://www.researchgate.net/publication/ai-ethics-2023',
+      content: 'Recent developments in AI have raised significant concerns about bias, privacy, and accountability in automated decision-making systems.',
+      score: 0.92
+    },
+    {
+      url: 'https://www.sciencedirect.com/science/article/ai-society',
+      content: 'The impact of artificial intelligence on modern society extends beyond technological advancement to fundamental changes in how we work and interact.',
+      score: 0.78
+    },
+    {
+      url: 'https://www.jstor.org/stable/ai-research',
+      content: 'As AI systems become more prevalent, questions about their governance and regulation have come to the forefront of public discourse.',
+      score: 0.88
+    },
+    {
+      url: 'https://www.medium.com/ai-ethics',
+      content: 'The development of ethical AI requires collaboration between technologists, policymakers, and ethicists to ensure responsible innovation.',
+      score: 0.75
+    }
+  ];
   
   for (let i = 0; i < numItems; i++) {
     const itemText = processedSegments[i] || "Sample text for plagiarism detection";
-    const numCandidates = Math.floor(Math.random() * 2) + 1; // 1-2 candidates per item
+    const numCandidates = Math.floor(Math.random() * 2) + 1;
     const candidates: PlagiarismCandidate[] = [];
     
     for (let j = 0; j < numCandidates; j++) {
+      const randomSource = realisticSources[Math.floor(Math.random() * realisticSources.length)];
       candidates.push({
-        url: `https://example.com/sample-${i + 1}-${j + 1}`,
-        plagia_score: Math.random() * 0.8 + 0.1, // Score between 0.1 and 0.9
-        prediction: Math.random() > 0.3 ? 'plagiarized' : 'original',
-        plagiarized_text: itemText
+        url: randomSource.url,
+        plagia_score: randomSource.score,
+        prediction: randomSource.score > 0.7 ? 'plagiarized' : 'original',
+        plagiarized_text: randomSource.content
       });
     }
     
@@ -96,24 +121,9 @@ export const getMockPlagiarismData = (text: string): PlagiarismResponse => {
     });
   }
   
-  // Always ensure we have at least one item with candidates
-  if (mockItems.length === 0) {
-    mockItems.push({
-      text: text || "Sample text for plagiarism detection",
-      candidates: [{
-        url: "https://example.com/sample",
-        plagia_score: 0.7,
-        prediction: "plagiarized",
-        plagiarized_text: text || "Sample text for plagiarism detection"
-      }]
-    });
-  }
-  
-  const plagiaScore = Math.floor(Math.random() * 40) + 5; // Score between 5% and 45%
-  
   return {
     originalityai: {
-      plagia_score: plagiaScore,
+      plagia_score: Math.floor(Math.random() * 40) + 5,
       items: mockItems,
       cost: 0
     }

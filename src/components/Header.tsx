@@ -29,7 +29,8 @@ export function Header() {
           <Link href="/#features" className="text-gray-600 hover:text-gray-900">Features</Link>
           <Link href="/#how-it-works" className="text-gray-600 hover:text-gray-900">How It Works</Link>
           <Link href="/#pricing" className="text-gray-600 hover:text-gray-900">Pricing</Link>
-          <Link href="/ai-detection" className="text-gray-600 hover:text-gray-900">AI Detection</Link>
+          {/* Temporarily disabled AI Detection */}
+          {/* <Link href="/ai-detection" className="text-gray-600 hover:text-gray-900">AI Detection</Link> */}
           <Link href="/plagiarism-detection" className="text-gray-600 hover:text-gray-900">Plagiarism Check</Link>
           <div className="flex space-x-4 items-center">
             <SignedOut>
@@ -83,9 +84,10 @@ export function Header() {
             <Link href="/#pricing" className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50">
               Pricing
             </Link>
-            <Link href="/ai-detection" className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50">
+            {/* Temporarily disabled AI Detection */}
+            {/* <Link href="/ai-detection" className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50">
               AI Detection
-            </Link>
+            </Link> */}
             <Link href="/plagiarism-detection" className="block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:text-gray-900 hover:bg-gray-50">
               Plagiarism Check
             </Link>
