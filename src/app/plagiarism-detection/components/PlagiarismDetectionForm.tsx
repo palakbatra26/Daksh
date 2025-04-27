@@ -2,11 +2,17 @@
 
 import React, { useEffect, useState } from 'react';
 import mammoth from 'mammoth';
-import * as pdfjsLib from 'pdfjs-dist';
+import dynamic from 'next/dynamic';
 
-// Set worker path for PDF.js
+// Dynamically import PDF.js only on the client side
+let pdfjsLib: typeof import('pdfjs-dist') | null = null;
+
+// Initialize PDF.js only on the client side
 if (typeof window !== 'undefined') {
-  pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+  import('pdfjs-dist').then((pdfjs) => {
+    pdfjsLib = pdfjs;
+    pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+  });
 }
 
 interface PlagiarismDetectionFormProps {
@@ -43,6 +49,10 @@ const PlagiarismDetectionForm: React.FC<PlagiarismDetectionFormProps> = ({
   }, [text, validationError]);
 
   const extractTextFromPDF = async (file: File): Promise<string> => {
+    if (!pdfjsLib) {
+      throw new Error('PDF.js is not initialized');
+    }
+    
     try {
       const arrayBuffer = await file.arrayBuffer();
       const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;

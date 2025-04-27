@@ -2,11 +2,53 @@
 
 import { useState } from 'react';
 import React from 'react';
+import dynamic from 'next/dynamic';
 import { detectPlagiarism, PlagiarismResponse } from '@/lib/edenai';
 import { Header } from '@/components/Header';
 import { Footer } from '@/components/Footer';
-import PlagiarismDetectionForm from './components/PlagiarismDetectionForm';
-import PlagiarismDetectionResults from './components/PlagiarismDetectionResults';
+
+// Dynamically import components with loading fallbacks
+const PlagiarismDetectionForm = dynamic(
+  () => import('./components/PlagiarismDetectionForm'),
+  {
+    loading: () => <div>Loading form...</div>,
+    ssr: false // Disable server-side rendering for this component
+  }
+);
+
+const PlagiarismDetectionResults = dynamic(
+  () => import('./components/PlagiarismDetectionResults'),
+  {
+    loading: () => <div>Loading results...</div>,
+    ssr: false // Disable server-side rendering for this component
+  }
+);
+
+// Error boundary component
+class ErrorBoundary extends React.Component<
+  { children: React.ReactNode; fallback: React.ReactNode },
+  { hasError: boolean }
+> {
+  constructor(props: { children: React.ReactNode; fallback: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: Error, info: React.ErrorInfo) {
+    console.error('Error in plagiarism detection:', error, info);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return this.props.fallback;
+    }
+    return this.props.children;
+  }
+}
 
 export default function PlagiarismDetection() {
   const [isLoading, setIsLoading] = useState(false);
@@ -242,24 +284,4 @@ export default function PlagiarismDetection() {
       <Footer />
     </>
   );
-}
-
-// Simple error boundary component
-class ErrorBoundary extends React.Component<{children: React.ReactNode, fallback: React.ReactNode}> {
-  state = { hasError: false };
-  
-  static getDerivedStateFromError() {
-    return { hasError: true };
-  }
-  
-  componentDidCatch(error: Error, info: React.ErrorInfo) {
-    console.error("Plagiarism results error:", error, info);
-  }
-  
-  render() {
-    if (this.state.hasError) {
-      return this.props.fallback;
-    }
-    return this.props.children;
-  }
 } 
